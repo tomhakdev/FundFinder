@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investment Recommendations</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50">
+    <div class="min-h-screen py-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-900 mb-4">Your Investment Recommendations</h1>
+                <div class="text-gray-600 mb-4">
+                    Based on your preferences:
+                    <span class="font-medium">{{ preferences.risk_level.title() }} Risk</span> |
+                    <span class="font-medium">{{ preferences.desired_return }}% Target Return</span> |
+                    <span class="font-medium">{{ preferences.sectors|join(', ') }}</span>
+                </div>
+                <button id="shuffle-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors">
+                    Shuffle Recommendations
+                </button>
+            </div>
+
+            <div id="recommendations-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            </div>
+
+            <div id="no-results" class="hidden text-center py-8">
+                <p class="text-gray-600 text-lg">
+                    No matching investments found. Try adjusting your preferences for more options.
+                </p>
+                <a href="{{ url_for('index') }}" class="text-indigo-600 hover:text-indigo-800 mt-4 inline-block">
+                    ← Adjust Preferences
+                </a>
+            </div>
+
+            <div class="mt-8 text-center">
+                <a href="{{ url_for('index') }}" class="text-indigo-600 hover:text-indigo-800">
+                    ← Back to Investment Profile
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function displayRecommendations(recommendations) {
+            const container = document.getElementById('recommendations-container');
+            const noResults = document.getElementById('no-results');
+            
+            if (!recommendations || recommendations.length === 0) {
+                container.classList.add('hidden');
+                noResults.classList.remove('hidden');
+                return;
+            }
+            
+            container.classList.remove('hidden');
+            noResults.classList.add('hidden');
+            
+            container.innerHTML = recommendations.map(stock => `
+                <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-900">${stock.name}</h2>
+                            <p class="text-gray-600">${stock.symbol}</p>
+                        </div>
+                        <span class="px-3 py-1 text-sm bg-gray-100 rounded-full text-gray-800">
+                            ${stock.sector}
+                        </span>
+                    </div>
+                    <div class="space-y-2 mb-4">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Historical Return</span>
+                            <span class="font-medium">${stock.historical_return.toFixed(2)}%</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Risk Level</span>
+                            <span class="font-medium">${stock.beta < 0.8 ? 'Low' : stock.beta > 1.2 ? 'High' : 'Medium'}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Dividend Yield</span>
+                            <span class="font-medium">${stock.dividend_yield.toFixed(2)}%</span>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <a href="/projections/${stock.symbol}" 
+                           class="text-indigo-600 hover:text-indigo-800 font-medium">
+                            View Projections →
+                        </a>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Display initial recommendations
+        displayRecommendations({{ recommendations | tojson | safe }});
+
+        // Handle shuffle button
+        document.getElementById('shuffle-btn').addEventListener('click', function() {
+            this.disabled = true;
+            this.classList.add('opacity-50');
+            
+            fetch('/shuffle')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        displayRecommendations([]);
+                    } else {
+                        displayRecommendations(data.recommendations);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    displayRecommendations([]);
+                })
+                .finally(() => {
+                    this.disabled = false;
+                    this.classList.remove('opacity-50');
+                });
+        });
+    </script>
+</body>
+</html>
